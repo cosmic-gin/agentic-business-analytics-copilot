@@ -14,6 +14,7 @@ class Settings(BaseSettings):
     )
 
     app_mode: Literal["demo", "llm"] = "demo"
+    app_public_llm: bool = False
     app_require_access_password: bool = False
     app_access_password: SecretStr | None = Field(default=None, min_length=20)
     llm_provider: Literal["none", "openai", "groq"] = "none"

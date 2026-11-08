@@ -1,5 +1,8 @@
 import logging
-from time import perf_counter
+from collections import deque
+from math import ceil
+from threading import Lock
+from time import monotonic, perf_counter
 
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import JSONResponse, StreamingResponse
@@ -37,12 +40,40 @@ LLM_EXAMPLE = Example(label="Safety & Control in May",
                       question="What share of Safety & Control shipments met their delivery promise in May 2026?")
 
 
+class PublicLlmQuota:
+    """Share a bounded request budget between both analysis endpoints."""
+
+    def __init__(self):
+        self.requests: deque[float] = deque()
+        self.lock = Lock()
+
+    def reserve(self) -> None:
+        with self.lock:
+            now = monotonic()
+            while self.requests and now - self.requests[0] >= 86_400:
+                self.requests.popleft()
+            if len(self.requests) >= 60:
+                retry_after = ceil(86_400 - (now - self.requests[0]))
+            elif len(self.requests) >= 4 and now - self.requests[-4] < 60:
+                retry_after = ceil(60 - (now - self.requests[-4]))
+            else:
+                self.requests.append(now)
+                return
+        raise HTTPException(
+            429, "The public LLM has reached its shared request limit. Please try again later.",
+            headers={"Retry-After": str(retry_after)},
+        )
+
+
 def build_router(settings: Settings) -> APIRouter:
     router = APIRouter(prefix="/api", responses={
         422: {"model": ErrorResponse}, 503: {"model": ErrorResponse},
     })
     tools = AnalyticsTools(settings.database_path)
-    agents: dict[Mode, AnalyticsAgent] = {"demo": AnalyticsAgent(tools, DeterministicPlanner())}
+    agents: dict[Mode, AnalyticsAgent] = {}
+    quota = PublicLlmQuota() if settings.app_public_llm else None
+    if quota is None:
+        agents["demo"] = AnalyticsAgent(tools, DeterministicPlanner())
     if settings.app_mode == "llm" and not settings.llm_enabled:
         raise ValueError("APP_MODE=llm requires LLM_PROVIDER and its server-side API key.")
     if settings.llm_enabled:
@@ -73,8 +104,8 @@ def build_router(settings: Settings) -> APIRouter:
         return KPIs(**KPI_DEFINITIONS)
 
     @router.get("/examples")
-    def examples(mode: Mode = "demo") -> list[Example]:
-        return [*EXAMPLES, LLM_EXAMPLE] if mode == "llm" and "llm" in agents else EXAMPLES
+    def examples(mode: Mode | None = None) -> list[Example]:
+        return [*EXAMPLES, LLM_EXAMPLE] if (mode or default_mode) == "llm" and "llm" in agents else EXAMPLES
 
     @router.get("/evaluations")
     def evaluations(mode: Mode = "demo") -> EvaluationResponse:
@@ -92,9 +123,14 @@ def build_router(settings: Settings) -> APIRouter:
         return EvaluationResponse(status="available", report=report)
 
     def resolve_agent(payload: AskRequest) -> AnalyticsAgent:
-        if payload.mode and payload.mode not in agents:
-            raise HTTPException(503, "LLM mode is unavailable. Choose demo mode or configure the server.")
-        return agents[payload.mode or default_mode]
+        mode = payload.mode or default_mode
+        if mode not in agents:
+            message = ("This workspace only supports live LLM mode." if quota is not None
+                       else "LLM mode is unavailable. Choose demo mode or configure the server.")
+            raise HTTPException(503, message)
+        if quota is not None:
+            quota.reserve()
+        return agents[mode]
 
     @router.post("/ask")
     def ask(payload: AskRequest, request: Request) -> AnalysisResponse:

@@ -38,7 +38,7 @@ function App() {
       <div className="topbar"><span><b>Workspace</b><span className="breadcrumb-separator"> / </span>{evaluation ? 'Evaluation' : 'Investigation'}</span>
         <label className="mode-control"><span className="mode-dot" /> <span className="sr-only">Planner mode</span>
           <select aria-label="Planner mode" value={mode} onChange={event => setMode(event.target.value as Mode)}>
-            <option value="demo">Demo mode</option>
+            {(!metadata || metadata.enabled_modes.includes('demo')) && <option value="demo">Demo mode</option>}
             <option value="llm" disabled={!metadata?.enabled_modes.includes('llm')}>
               {metadata?.llm_provider ? 'LLM mode · ' + (metadata.llm_provider === 'groq' ? 'Groq' : 'OpenAI') : 'LLM mode'}
             </option>

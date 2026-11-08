@@ -187,3 +187,9 @@
 - Important files — README.md, docs/RELEASE_GUIDE.md, render.yaml and render.llm.yaml.
 - Commands and results — the normal LLM Compose entry point reached healthy and all live smoke checks passed. The response reported real provider token usage, April at 94%, May at 91% and 201 of 240 shipments on time for the named category. Unsafe requests stopped before the provider and SQL. Ruff and 62 backend tests passed. Frontend lint, type checking and production build passed.
 - Next — after approval, publish the main branch, check attribution and CI on GitHub, and deploy and verify the chosen Render profile.
+
+## PHASE 16 PUBLIC GROQ PROFILE PREPARED
+
+- What we built — the public Blueprint serves only live Groq without a login. Both analysis endpoints share four requests per minute and 60 per 24 hours. The server returns HTTP 429 with a retry interval when the budget is exhausted.
+- Commands and results — 64 backend tests, Ruff, frontend lint, type checking and the production build passed. A read-only Docker container at port 10000 passed anonymous access, LLM-only metadata, unsafe-request rejection and cross-endpoint rate limit checks. Groq rejected the local test credential. The key configured separately on the existing Render revision passed a live smoke test with reported token usage, the May comparison and the named-category filter.
+- Next — publish the new revision after approval, sync or deploy the existing Render service, and smoke-test the resulting public LLM-only URL.

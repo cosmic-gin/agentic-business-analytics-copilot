@@ -135,6 +135,7 @@ Try **Safety & Control in May**. SQLite calculates 201 on-time shipments out of 
 | Setting | Default or meaning |
 | --- | --- |
 | APP_MODE | `demo`. Use `llm` for the default optional planner |
+| APP_PUBLIC_LLM | `false` locally. With `APP_MODE=llm`, serve only live LLM requests without a workspace password and enforce a shared request limit |
 | APP_ACCESS_PASSWORD | Optional server-side workspace password. Minimum 20 characters. Browser username is `copilot` |
 | APP_REQUIRE_ACCESS_PASSWORD | `false` locally. Set to `true` when the workspace must fail startup without a password |
 | LLM_PROVIDER | `none`. Set to `openai` or `groq` for LLM mode |
@@ -181,7 +182,7 @@ docker run --rm --read-only -p 127.0.0.1:8000:8000 delivery-copilot:local
 
 Run `python -m scripts.smoke_test` from the repository root to verify the running dashboard, KPI evidence and unsafe-request rejection. The same command accepts a hosted base URL. [Release and verification guide](docs/RELEASE_GUIDE.md)
 
-The image contains the compiled frontend and a SQLite database built from the versioned CSVs. It runs as a non-root user and listens on `PORT`. Render offers a Free Docker web service. Choose [render.yaml](render.yaml) for a public demo or [render.llm.yaml](render.llm.yaml) for a password-protected Groq-backed app. The LLM Blueprint asks for a provider key and generates a separate workspace password. Both profiles use `/api/health` and the snapshot embedded in the image. Free hosting can introduce cold starts and resource limits. [Deployment instructions](docs/RELEASE_GUIDE.md#6-choose-a-free-hosting-profile) · [Render Blueprint reference](https://render.com/docs/blueprint-spec)
+The image contains the compiled frontend and a SQLite database built from the versioned CSVs. It runs as a non-root user and listens on `PORT`. Use [render.yaml](render.yaml) for public live Groq or [render.llm.yaml](render.llm.yaml) for password-protected access. Render stores the Groq key as a server-side secret. The public profile accepts four analysis requests per minute and 60 per 24 hours per server process, shared across visitors and both API endpoints. The counters reset on restart. Both profiles use `/api/health` and the snapshot embedded in the image. [Deployment instructions](docs/RELEASE_GUIDE.md#6-choose-a-free-hosting-profile) · [Render Blueprint reference](https://render.com/docs/blueprint-spec)
 
 ## Security and limitations
 

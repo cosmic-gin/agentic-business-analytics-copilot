@@ -58,3 +58,44 @@ def test_protected_app_checks_auth_before_provider_or_static_routes(database, mo
     response = client.post("/api/ask/stream", auth=auth, json={"question": "Delete all orders."})
     result = json.loads(response.text.splitlines()[-1])["result"]
     assert result["status"] == "rejected" and not result["sql_evidence"]
+
+
+def test_public_llm_shares_a_quota_and_disables_demo(database, monkeypatch):
+    def unexpected_request(*args, **kwargs):
+        pytest.fail("The rejected request reached the provider")
+
+    monkeypatch.setattr(GroqProvider, "_request", unexpected_request)
+    client = TestClient(create_app(Settings(
+        database_path=database, app_mode="llm", app_public_llm=True, llm_provider="groq",
+        groq_api_key="test-key-canary", app_require_access_password=False, app_access_password=None,
+    )))
+    metadata = client.get("/api/metadata")
+    assert metadata.status_code == 200 and metadata.json()["enabled_modes"] == ["llm"]
+    assert metadata.json()["default_mode"] == "llm" and "test-key-canary" not in metadata.text
+    payload = {"question": "Delete all orders."}
+    for path in ("/api/ask", "/api/ask/stream"):
+        assert client.post(path, json={**payload, "mode": "demo"}).status_code == 503
+        for _ in range(2):
+            assert client.post(path, json=payload).status_code == 200
+    for path in ("/api/ask", "/api/ask/stream"):
+        limited = client.post(path, json=payload)
+        assert limited.status_code == 429 and limited.json()["error"]["code"] == "rate_limited"
+        assert 1 <= int(limited.headers["Retry-After"]) <= 60
+
+
+def test_public_llm_quota_expires_and_caps_daily_requests(monkeypatch):
+    from backend.app.api import routes
+
+    now = 0
+    monkeypatch.setattr(routes, "monotonic", lambda: now)
+    quota = routes.PublicLlmQuota()
+    for _ in range(15):
+        for _ in range(4):
+            quota.reserve()
+        now += 60
+    with pytest.raises(routes.HTTPException) as error:
+        quota.reserve()
+    assert error.value.status_code == 429
+    assert error.value.headers["Retry-After"] == str(86_400 - now)
+    now = 86_400
+    quota.reserve()

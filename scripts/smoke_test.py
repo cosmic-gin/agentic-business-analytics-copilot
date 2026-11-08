@@ -132,12 +132,23 @@ def smoke_test(base_url, wait_seconds, mode="demo", password=None):
             and filtered["supporting_evidence"][0]["on_time_rate"] == 83.75,
             "LLM paraphrase applies the named filter and returns 201/240 on time",
         )
-    evaluation = json.loads(fetch_app("/api/evaluations"))
-    overall = evaluation["report"]["overall"]
-    require(
-        evaluation["status"] == "available" and overall["passed"] == overall["total"] == 50,
-        "versioned benchmark is available and reports 50 passing cases",
-    )
+    if mode == "llm" and metadata["enabled_modes"] == ["llm"]:
+        require(metadata["default_mode"] == "llm", "the public workspace defaults to live LLM")
+        for path in ("/api/ask", "/api/ask/stream"):
+            try:
+                fetch_app(path, {"question": MAY_QUESTION, "mode": "demo"})
+            except HTTPError as error:
+                with error:
+                    require(error.code == 503, f"{path} rejects demo mode")
+            else:
+                raise RuntimeError(f"Check failed: {path} accepted demo mode")
+    else:
+        evaluation = json.loads(fetch_app("/api/evaluations"))
+        overall = evaluation["report"]["overall"]
+        require(
+            evaluation["status"] == "available" and overall["passed"] == overall["total"] == 50,
+            "versioned benchmark is available and reports 50 passing cases",
+        )
 
 
 def main():

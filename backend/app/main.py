@@ -73,6 +73,10 @@ class BoundAskBody:
 def create_app(settings: Settings | None = None) -> FastAPI:
     settings = settings or Settings()
     access_password = settings.app_access_password
+    if settings.app_public_llm and (
+        settings.app_mode != "llm" or settings.app_require_access_password or access_password is not None
+    ):
+        raise ValueError("APP_PUBLIC_LLM requires APP_MODE=llm and no workspace password settings.")
     if settings.app_require_access_password and access_password is None:
         raise ValueError("APP_REQUIRE_ACCESS_PASSWORD requires a server-side APP_ACCESS_PASSWORD.")
     expected_credentials = (
@@ -122,7 +126,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     @app.exception_handler(HTTPException)
     async def http_error(request: Request, error: HTTPException):
-        code = "service_unavailable" if error.status_code == 503 else "http_error"
+        code = {429: "rate_limited", 503: "service_unavailable"}.get(error.status_code, "http_error")
         response = error_response(request.state.request_id, error.status_code, code, str(error.detail))
         response.headers.update(error.headers or {})
         return response

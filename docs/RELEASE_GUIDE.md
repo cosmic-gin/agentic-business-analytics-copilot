@@ -127,25 +127,25 @@ The commit lookup should show `cosmic-gin` for both identities. Allow a moment f
 
 | What you want | Render Blueprint path | Credentials |
 | --- | --- | --- |
-| Public portfolio demo | `render.yaml` | None |
+| Public portfolio with live Groq | `render.yaml` | Groq Free Plan API key stored in Render. Visitors can open the link without a password |
 | Model-backed app with restricted access | `render.llm.yaml` | Groq Free Plan API key. Render generates the workspace password |
 
 Both profiles use a single Free Docker web service. GitHub Pages can host static documentation, while the running application needs a web service for FastAPI, LangGraph, SQLite and server-side provider calls. Choose one profile for your first deploy. Render's Free instances can spin down after 15 idle minutes and share the workspace's monthly usage allowance. The SQLite snapshot ships inside the image, so the app can restart with the same data. Groq account limits apply separately. [Render Free service limits](https://render.com/docs/free) · [Groq Free Plan limits](https://console.groq.com/docs/rate-limits)
 
-### Public demo
+### Public live Groq
 
-1. Wait for both GitHub Actions jobs to pass. Sign in to [Render](https://dashboard.render.com/), select **New → Blueprint**, and connect the repository.
-2. Select branch `main` and Blueprint path `render.yaml`. Review the resources before clicking **Deploy Blueprint**. The config defines one Docker web service on the Free plan with health path `/api/health`, demo mode and no persistent disk. It disables automatic service deploys on commits. For manual-only Blueprint changes, disable Blueprint auto-sync in the Render dashboard as well.
-3. Wait for the service to report healthy. Open its `onrender.com` URL. The SQLite file is built into the image from the versioned snapshot. Free services can spin down when idle, so the first request may take longer.
-4. Keep the public demo in demo mode. Check the hosted URL with the same smoke command, then open the site in a browser and run the May and unsafe examples.
+1. Wait for both GitHub Actions jobs to pass for the public LLM revision. For a new service, choose **New → Blueprint** in Render, connect the repository on `main`, select `render.yaml`, and enter `GROQ_API_KEY` at the secret prompt.
+2. To reuse the existing `delivery-analytics-copilot` URL, open the web service's **Environment** page. Keep `GROQ_API_KEY` there, remove `APP_ACCESS_PASSWORD` if present, and set `APP_MODE=llm`, `APP_PUBLIC_LLM=true`, `APP_REQUIRE_ACCESS_PASSWORD=false`, `LLM_PROVIDER=groq` and `GROQ_MODEL=openai/gpt-oss-120b`. Choose **Save only**. Once the updated `render.yaml` is on `main`, let the existing Blueprint sync or choose **Manual Sync** on the Blueprint page, then check the deployed commit on the service's **Deploys** page. If needed, choose **Manual Deploy → Deploy latest commit** on the service. An existing Blueprint does not prompt for newly introduced secrets.
+3. Wait for the service to report healthy. Open its `onrender.com` URL in a private window and run **May delivery decline**. The mode selector offers only LLM. A successful result displays provider usage and SQL evidence.
+4. Run the smoke command below. The public profile accepts four analysis requests per minute and 60 per 24 hours across all visitors and both analysis endpoints. The limits are in memory and reset when the server restarts. The smoke command submits three analysis requests, so wait a minute after testing manually if the shared minute limit has been reached.
 
 ```powershell
 $baseUrl = 'https://YOUR-SERVICE.onrender.com'
-python -m scripts.smoke_test $baseUrl --wait-seconds 120
+python -m scripts.smoke_test $baseUrl --mode llm --wait-seconds 120
 (Invoke-RestMethod "$baseUrl/api/metadata").enabled_modes
 ```
 
-Expect `demo` as the only enabled planner. To diagnose a failure, check the Render build and runtime logs, the readiness route, and whether the deployed commit matches the passing CI run. Add the live URL to the repository only after these checks pass. [Render Blueprint setup](https://render.com/docs/infrastructure-as-code) · [Blueprint reference](https://render.com/docs/blueprint-spec) · [Free service limits](https://render.com/docs/free)
+Expect `llm` as the only enabled planner. To diagnose a failure, check the Render build and runtime logs, the readiness route, and whether the deployed commit matches the passing CI run. Add the live URL to the repository only after these checks pass. [Render Blueprint setup](https://render.com/docs/infrastructure-as-code) · [Blueprint reference](https://render.com/docs/blueprint-spec) · [Free service limits](https://render.com/docs/free)
 
 ### Password-protected LLM
 
@@ -160,7 +160,7 @@ $baseUrl = 'https://YOUR-SERVICE.onrender.com'
 python -m scripts.smoke_test $baseUrl --mode llm --protected --wait-seconds 120
 ```
 
-The hosted Evaluation page includes the demo report. Live LLM evaluation reports are generated and viewed locally using the next section. To share the hosted LLM privately, share the workspace access password only with intended reviewers. Use the public demo URL for a portfolio link that anyone can open. The password is a shared access gate for a portfolio deployment. [Render Blueprint setup](https://render.com/docs/infrastructure-as-code) · [Render secret variables](https://render.com/docs/blueprint-spec#prompting-for-secret-values)
+The protected service can also display the bundled demo benchmark. Live LLM evaluation reports are generated and viewed locally using the next section. Share the workspace access password only with intended reviewers. [Render Blueprint setup](https://render.com/docs/infrastructure-as-code) · [Render secret variables](https://render.com/docs/blueprint-spec#prompting-for-secret-values)
 
 For manual creation, choose **New → Web Service**, connect the repository, and choose **Docker** and **Free**. Set the health-check path to `/api/health` and **Auto-Deploy** to **Off**. For the protected profile, set `APP_MODE=llm`, `LLM_PROVIDER=groq`, `GROQ_API_KEY`, `APP_REQUIRE_ACCESS_PASSWORD=true` and a randomly generated `APP_ACCESS_PASSWORD` of at least 20 characters in Render. Leave the port at Render's default and use its HTTPS URL. If you use OpenAI instead, set `LLM_PROVIDER=openai` and provide `OPENAI_API_KEY` through the same server-side settings.
 

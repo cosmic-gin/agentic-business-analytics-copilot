@@ -8,6 +8,14 @@ services:
     healthCheckPath: /api/health
     envVars:
       - key: APP_MODE
-        value: demo
+        value: llm
+      - key: APP_PUBLIC_LLM
+        value: "true"
+      - key: APP_REQUIRE_ACCESS_PASSWORD
+        value: "false"
       - key: LLM_PROVIDER
-        value: none
+        value: groq
+      - key: GROQ_MODEL
+        value: openai/gpt-oss-120b
+      - key: GROQ_API_KEY
+        sync: false
