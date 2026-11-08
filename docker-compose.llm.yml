@@ -1,0 +1,10 @@
+services:
+  copilot:
+    env_file:
+      - ${COPILOT_ENV_FILE:-.env}
+    environment:
+      APP_MODE: llm
+      LLM_PROVIDER: ${LLM_PROVIDER:?Set LLM_PROVIDER in .env}
+      DATABASE_PATH: /app/data/analytics.sqlite
+    volumes:
+      - ./evals/reports:/app/evals/reports:ro

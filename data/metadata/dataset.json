@@ -1,0 +1,9 @@
+{
+  "version": "v1",
+  "simulated": true,
+  "seed": 202604,
+  "first_month": "2026-01",
+  "latest_month": "2026-10",
+  "cutoff_exclusive": "2026-11-01T00:00:00Z",
+  "currency": "USD"
+}

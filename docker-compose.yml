@@ -1,0 +1,15 @@
+services:
+  copilot:
+    build: .
+    ports:
+      - "127.0.0.1:8000:8000"
+    read_only: true
+    environment:
+      APP_MODE: demo
+      LLM_PROVIDER: none
+    healthcheck:
+      test: ["CMD", "python", "-c", "from urllib.request import urlopen; urlopen('http://127.0.0.1:8000/api/health', timeout=3).close()"]
+      interval: 15s
+      timeout: 4s
+      retries: 3
+      start_period: 15s

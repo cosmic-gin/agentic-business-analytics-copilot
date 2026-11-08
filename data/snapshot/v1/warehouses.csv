@@ -1,0 +1,5 @@
+warehouse_id,warehouse_name,region
+1,Berlin DC,Central
+2,Hamburg DC,North
+3,Munich DC,South
+4,Cologne DC,West

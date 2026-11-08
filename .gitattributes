@@ -1,0 +1,2 @@
+* text=auto
+data/snapshot/**/*.csv text eol=lf

@@ -1,0 +1,17 @@
+.venv/
+.uv-cache/
+.pnpm-store/
+__pycache__/
+.pytest_cache/
+.ruff_cache/
+*.pyc
+*.sqlite*
+.env
+.env.*
+!.env.example
+evals/reports/llm-local.json
+/local-report.json
+frontend/node_modules/
+frontend/dist/
+frontend/playwright-report/
+frontend/test-results/

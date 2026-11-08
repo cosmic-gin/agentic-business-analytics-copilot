@@ -1,0 +1,27 @@
+reporting_month: UTC promised delivery month
+valid_delivery: Completed with both UTC timestamps present and actual delivery before the exclusive snapshot cutoff.
+exclusions: Pending, cancelled and completed records missing either timestamp are excluded. For quality counts only, records missing promised time are assigned by order month.
+metrics:
+  on_time_rate:
+    label: On-time delivery rate
+    formula: "100 × on-time completed / valid completed"
+    rule: Actual delivery at or before the promise is on time. Empty denominator returns null.
+  late_rate:
+    label: Late-delivery rate
+    formula: "100 × late completed / valid completed"
+    rule: Actual delivery after the promise is late. Empty denominator returns null.
+  valid_deliveries:
+    label: Valid deliveries
+    formula: Count of valid completed deliveries
+  late_deliveries:
+    label: Late deliveries
+    formula: Count of valid completed deliveries after the promise
+  monthly_volume:
+    label: Monthly delivery volume
+    formula: Valid deliveries grouped by promised month
+  percentage_point_change:
+    label: Percentage-point change
+    formula: Current rate minus previous rate
+  dimension_performance:
+    label: Performance by carrier, warehouse or category
+    formula: Apply the same KPI within each dimension member

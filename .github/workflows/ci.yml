@@ -1,0 +1,61 @@
+name: Verify copilot
+on: [push, pull_request]
+permissions:
+  contents: read
+
+jobs:
+  verification:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          version: "0.9.9"
+          python-version: "3.12"
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+          package-manager-cache: false
+      - run: uv sync --locked
+      - run: uv run ruff check backend scripts evals
+      - run: uv run python -m scripts.build_database
+      - run: uv run pytest -q
+      - run: npm install --global pnpm@11.25.0
+      - run: pnpm install --frozen-lockfile
+        working-directory: frontend
+      - run: pnpm lint
+        working-directory: frontend
+      - run: pnpm build
+        working-directory: frontend
+      - run: pnpm exec playwright install --with-deps chromium
+        working-directory: frontend
+      - run: pnpm test
+        working-directory: frontend
+        env:
+          PLAYWRIGHT_PRODUCTION: "1"
+  container:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - run: docker build -t delivery-copilot:ci .
+      - run: |
+          docker run -d --rm --read-only --name delivery-copilot-ci -p 127.0.0.1:8000:8000 delivery-copilot:ci
+          trap 'docker stop delivery-copilot-ci' EXIT
+          before=$(docker exec delivery-copilot-ci sha256sum /app/data/analytics.sqlite)
+          python3 -m scripts.smoke_test --wait-seconds 45
+          after=$(docker exec delivery-copilot-ci sha256sum /app/data/analytics.sqlite)
+          test "$before" = "$after"
+      - name: Check protected LLM deployment with test credentials
+        run: |
+          export APP_ACCESS_PASSWORD=ci-test-workspace-password
+          docker run -d --rm --read-only --name delivery-copilot-ci-llm -p 127.0.0.1:8000:8000 \
+            -e APP_MODE=llm -e APP_REQUIRE_ACCESS_PASSWORD=true -e APP_ACCESS_PASSWORD \
+            -e LLM_PROVIDER=groq -e GROQ_API_KEY=ci-test-key delivery-copilot:ci
+          trap 'docker stop delivery-copilot-ci-llm' EXIT
+          COPILOT_SMOKE_PASSWORD="$APP_ACCESS_PASSWORD" python3 -m scripts.smoke_test --protected --wait-seconds 45

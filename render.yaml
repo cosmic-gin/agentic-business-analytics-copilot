@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: delivery-analytics-copilot
+    runtime: docker
+    plan: free
+    autoDeployTrigger: "off"
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /api/health
+    envVars:
+      - key: APP_MODE
+        value: demo
+      - key: LLM_PROVIDER
+        value: none
